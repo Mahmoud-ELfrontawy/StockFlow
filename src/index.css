@@ -1,0 +1,326 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-primary: #0F172A;
+    --color-secondary: #2563EB;
+    --color-background: #F8FAFC;
+    --color-surface: #FFFFFF;
+    --color-text: #0F172A;
+    --color-muted: #475569;
+    --color-border: #E2E8F0;
+    --color-card-bg: #FFFFFF;
+    --color-card-border: #E2E8F0;
+    --color-table-header: #F1F5F9;
+    --color-table-row-hover: rgba(15, 23, 42, 0.03);
+  }
+
+  .dark {
+    --color-primary: #38BDF8;
+    --color-secondary: #60A5FA;
+    --color-background: #0B0F19;
+    --color-surface: #131B2E;
+    --color-text: #F8FAFC;
+    --color-muted: #94A3B8;
+    --color-border: #1E293B;
+    --color-card-bg: #131B2E;
+    --color-card-border: #1E293B;
+    --color-table-header: #0F172A;
+    --color-table-row-hover: rgba(56, 189, 248, 0.05);
+  }
+
+  * {
+    font-family: 'Cairo', sans-serif;
+    box-sizing: border-box;
+  }
+
+  html {
+    direction: rtl;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-family: 'Cairo', sans-serif;
+    margin: 0;
+    padding: 0;
+    font-weight: 500;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Make all numbers and English digits extra crisp and readable */
+  .font-mono, td, input, .stat-value {
+    font-feature-settings: "tnum";
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #94A3B8;
+    border-radius: 3px;
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: #334155;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #64748B;
+  }
+}
+
+@layer components {
+  /* Sidebar */
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer;
+  }
+
+  .sidebar-link-active {
+    @apply bg-blue-600 text-white shadow-md font-semibold;
+  }
+
+  .sidebar-link-inactive {
+    @apply text-slate-300 hover:bg-white/10 hover:text-white;
+  }
+
+  /* Cards */
+  .card {
+    background-color: var(--color-card-bg);
+    border-color: var(--color-card-border);
+    @apply rounded-2xl shadow-sm border p-6 transition-colors duration-200;
+  }
+
+  .dark .card {
+    border-color: #1E293B;
+  }
+
+  .stat-card {
+    background-color: var(--color-card-bg);
+    border-color: var(--color-card-border);
+    @apply rounded-2xl shadow-sm border p-5 flex items-start gap-4 transition-colors duration-200;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2 text-sm shadow-sm;
+  }
+
+  .btn-secondary {
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    border-color: var(--color-border);
+    @apply hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold px-5 py-2.5 rounded-xl border transition-all duration-200 flex items-center gap-2 text-sm shadow-sm;
+  }
+
+  .btn-danger {
+    @apply bg-rose-600 hover:bg-rose-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2 text-sm;
+  }
+
+  .btn-success {
+    @apply bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2 text-sm;
+  }
+
+  .btn-warning {
+    @apply bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2 text-sm;
+  }
+
+  .btn-icon {
+    @apply p-2 rounded-lg transition-all duration-200 flex items-center justify-center;
+  }
+
+  /* Form inputs */
+  .form-input {
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    border-color: var(--color-border);
+    @apply w-full px-4 py-2.5 rounded-xl border text-sm font-medium
+           focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500
+           placeholder:text-gray-400 dark:placeholder:text-gray-500 transition-all duration-200;
+  }
+
+  .form-label {
+    color: var(--color-text);
+    @apply block text-sm font-semibold mb-1.5;
+  }
+
+  .form-error {
+    @apply text-red-600 dark:text-red-400 text-xs mt-1 flex items-center gap-1 font-medium;
+  }
+
+  /* Table */
+  .table-wrapper {
+    border-color: var(--color-border);
+    @apply w-full overflow-x-auto rounded-xl border;
+  }
+
+  .table {
+    @apply w-full text-sm;
+  }
+
+  .table th {
+    background-color: var(--color-table-header);
+    color: #475569;
+    @apply font-bold px-4 py-3 text-right whitespace-nowrap text-xs;
+  }
+
+  .dark .table th {
+    color: #94A3B8;
+  }
+
+  .table td {
+    color: var(--color-text);
+    border-color: var(--color-border);
+    @apply px-4 py-3.5 border-t whitespace-nowrap font-medium;
+  }
+
+  .table tr:hover td {
+    background-color: var(--color-table-row-hover);
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+
+  .badge-success { @apply bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300; }
+  .badge-warning { @apply bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300; }
+  .badge-danger  { @apply bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300; }
+  .badge-info    { @apply bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200; }
+  .badge-muted   { @apply bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300; }
+}
+
+/* ============================================================
+   HIGH-CONTRAST READABILITY & NUMBERS OVERRIDES
+   Replaces faint/washed-out blue with dark slate & crisp colors
+   ============================================================ */
+
+/* Numbers and reference numbers readability */
+.text-blue-600,
+.text-blue-700,
+.text-blue-800 {
+  color: #1E293B; /* Dark slate in Light Mode instead of faint blue */
+  font-weight: 700;
+}
+
+.dark .text-blue-600,
+.dark .text-blue-700,
+.dark .text-blue-800 {
+  color: #38BDF8 !important; /* Bright crisp Sky Blue in Dark Mode */
+  font-weight: 700;
+}
+
+/* Reference numbers (#SI-001, #LD-001) */
+span.font-mono.text-blue-600,
+span.font-mono.font-bold.text-blue-600,
+span.font-mono.font-semibold.text-blue-600 {
+  color: #0F172A;
+  background-color: #F1F5F9;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 800;
+  border: 1px solid #E2E8F0;
+}
+
+.dark span.font-mono.text-blue-600,
+.dark span.font-mono.font-bold.text-blue-600,
+.dark span.font-mono.font-semibold.text-blue-600 {
+  color: #38BDF8 !important;
+  background-color: #1E293B !important;
+  border-color: #334155 !important;
+}
+
+/* Global text overrides for dark mode readability */
+.dark .text-gray-900 {
+  color: #F8FAFC !important;
+}
+
+.dark .text-gray-800 {
+  color: #F1F5F9 !important;
+}
+
+.dark .text-gray-700 {
+  color: #E2E8F0 !important;
+}
+
+.dark .text-gray-600 {
+  color: #CBD5E1 !important;
+}
+
+.dark .text-gray-500 {
+  color: #94A3B8 !important;
+}
+
+.dark .text-gray-400 {
+  color: #64748B !important;
+}
+
+.dark .bg-white {
+  background-color: var(--color-surface) !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: #0F172A !important;
+}
+
+.dark .bg-gray-100 {
+  background-color: #1E293B !important;
+}
+
+.dark .border-gray-100,
+.dark .border-gray-200 {
+  border-color: #1E293B !important;
+}
+
+/* Light mode crisp text enhancement */
+.text-gray-500 {
+  color: #475569;
+}
+
+.text-gray-400 {
+  color: #64748B;
+}
+
+.text-green-600,
+.text-green-700 {
+  color: #059669;
+  font-weight: 700;
+}
+
+.dark .text-green-600,
+.dark .text-green-700 {
+  color: #34D399 !important;
+  font-weight: 700;
+}
+
+.text-red-600,
+.text-red-700 {
+  color: #E11D48;
+  font-weight: 700;
+}
+
+.dark .text-red-600,
+.dark .text-red-700 {
+  color: #FB7185 !important;
+  font-weight: 700;
+}
+
+.text-amber-600,
+.text-amber-700 {
+  color: #D97706;
+  font-weight: 700;
+}
+
+.dark .text-amber-600,
+.dark .text-amber-700 {
+  color: #FBBF24 !important;
+  font-weight: 700;
+}
