@@ -10,15 +10,15 @@ export default function DataTable({ columns, data, loading, emptyTitle, emptyDes
     <div className="table-wrapper">
       <table className="table">
         <thead>
-          <tr>{columns.map((col) => (
-            <th key={col.key} style={{ width: col.width }} className={col.headerClass}>{col.title}</th>
+          <tr>{columns.map((col, idx) => (
+            <th key={col.id || `${col.key}-${idx}`} style={{ width: col.width }} className={col.headerClass}>{col.title}</th>
           ))}</tr>
         </thead>
         <tbody>
           {data.map((row, i) => (
             <tr key={row.id || i}>
-              {columns.map((col) => (
-                <td key={col.key} className={col.cellClass}>
+              {columns.map((col, idx) => (
+                <td key={col.id || `${col.key}-${idx}`} className={col.cellClass}>
                   {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')}
                 </td>
               ))}

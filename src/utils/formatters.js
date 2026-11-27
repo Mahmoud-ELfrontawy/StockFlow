@@ -7,7 +7,15 @@ import { format, parseISO, isValid } from 'date-fns';
 import { ar } from 'date-fns/locale';
 
 /**
- * Format a date string for display.
+ * Convert any Eastern Arabic digits (٠-٩) to English/Western digits (0-9).
+ */
+export function toEnglishDigits(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+}
+
+/**
+ * Format a date string for display (always English digits).
  * @param {string|Date} date
  * @param {string} fmt
  */
@@ -16,7 +24,7 @@ export function formatDate(date, fmt = 'dd/MM/yyyy') {
   try {
     const parsed = typeof date === 'string' ? parseISO(date) : date;
     if (!isValid(parsed)) return '—';
-    return format(parsed, fmt, { locale: ar });
+    return toEnglishDigits(format(parsed, fmt, { locale: ar }));
   } catch {
     return '—';
   }
@@ -30,20 +38,20 @@ export function formatDateTime(date) {
 }
 
 /**
- * Format a number with Arabic-friendly thousands separator.
+ * Format a number with English digits and thousands separator.
  */
 export function formatNumber(num) {
   if (!Number.isFinite(num)) return '0';
-  return num.toLocaleString('ar-EG');
+  return Number(num).toLocaleString('en-US');
 }
 
 /**
- * Format quantity as shrinks + pieces.
+ * Format quantity as shrinks + pieces (always English digits).
  * @param {number} pieces
  * @param {number} piecesPerShrink
  */
 export function formatQty(pieces, piecesPerShrink) {
-  if (!pieces || pieces === 0) return '٠';
+  if (!pieces || pieces === 0) return '0';
   if (!piecesPerShrink || piecesPerShrink <= 0) {
     return `${formatNumber(pieces)} ق`;
   }

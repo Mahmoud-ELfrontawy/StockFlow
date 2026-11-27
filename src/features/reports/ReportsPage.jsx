@@ -1,4 +1,4 @@
-// STOCKFLOW — REPORTS PAGE
+﻿// STOCKFLOW — REPORTS PAGE
 import { useState, useMemo } from 'react';
 import { Download, FileText, Table } from 'lucide-react';
 import useInventoryStore from '../../store/inventoryStore';
@@ -6,6 +6,7 @@ import PageHeader from '../../components/common/PageHeader';
 import Button from '../../components/common/Button';
 import StatusBadge from '../../components/common/StatusBadge';
 import { buildWarehouseStockSummary } from '../../utils/stockCalculations';
+import { RETURN_CONDITION_LABELS, RETURN_CONDITIONS } from '../../utils/constants';
 import { formatDate } from '../../utils/formatters';
 
 const REPORTS = [
@@ -24,8 +25,8 @@ export default function ReportsPage() {
   const [filterSalesman, setFilterSalesman] = useState('');
 
   const stockSummary = useMemo(
-    () => buildWarehouseStockSummary(products, stockTransactions),
-    [products, stockTransactions]
+    () => buildWarehouseStockSummary(products, stockTransactions, returnTransactions),
+    [products, stockTransactions, returnTransactions]
   );
 
   const inRange = (dateStr) => {
@@ -73,12 +74,16 @@ export default function ReportsPage() {
                     p.totalGoodReturned,
                     Math.floor(p.totalDamaged / pShrink),
                     p.totalDamaged,
+                    Math.floor(p.companyReturnsStock / pShrink),
+                    p.companyReturnsStock,
                     Math.floor(p.currentStock / pShrink),
                     p.currentStock,
+                    Math.floor(p.totalPhysicalStock / pShrink),
+                    p.totalPhysicalStock,
                     p.isLowStock ? 'منخفض' : 'جيد'
                   ];
                 }),
-                ['اسم المنتج', 'SKU', 'رصيد افتتاحي (شرنك)', 'افتتاحي (قطع)', 'مستلم (شرنك)', 'مستلم (قطع)', 'محمّل (شرنك)', 'محمّل (قطع)', 'مرتجع (شرنك)', 'مرتجع (قطع)', 'تالف (شرنك)', 'تالف (قطع)', 'متاح (شرنك)', 'متاح (قطع)', 'الحالة'],
+                ['اسم المنتج', 'SKU', 'رصيد افتتاحي (شرنك)', 'افتتاحي (قطع)', 'مستلم (شرنك)', 'مستلم (قطع)', 'محمّل (شرنك)', 'محمّل (قطع)', 'مرتجع سليم (شرنك)', 'مرتجع سليم (قطع)', 'تالف (شرنك)', 'تالف (قطع)', 'مرتجع للشركة (شرنك)', 'مرتجع للشركة (قطع)', 'صالح للبيع (شرنك)', 'صالح للبيع (قطع)', 'الإجمالي الفعلي (شرنك)', 'الإجمالي الفعلي (قطع)', 'الحالة'],
                 'stock-status-report'
               )}>
                 <Download size={14} /> تصدير Excel (CSV)
@@ -92,9 +97,10 @@ export default function ReportsPage() {
                     <th>SKU</th>
                     <th className="text-center">مستلم (شرنك)</th>
                     <th className="text-center">محمّل (شرنك)</th>
-                    <th className="text-center">مرتجع (شرنك)</th>
-                    <th className="text-center">تالف (شرنك)</th>
-                    <th className="text-center bg-emerald-50/50 dark:bg-emerald-950/20 font-bold">المتاح الآن (شرنك)</th>
+                    <th className="text-center">مرتجع سليم</th>
+                    <th className="text-center">مرتجع للشركة</th>
+                    <th className="text-center bg-emerald-50/50 dark:bg-emerald-950/20 font-bold">الصالح للبيع</th>
+                    <th className="text-center bg-blue-50/50 dark:bg-sky-950/20 font-bold">الإجمالي الفعلي</th>
                     <th>الحالة</th>
                   </tr>
                 </thead>
@@ -104,30 +110,39 @@ export default function ReportsPage() {
                     const receivedShrinks = Math.floor(p.totalReceived / pShrink);
                     const dispatchedShrinks = Math.floor(p.totalDispatched / pShrink);
                     const returnedShrinks = Math.floor(p.totalGoodReturned / pShrink);
-                    const damagedShrinks = Math.floor(p.totalDamaged / pShrink);
+                    const companyShrinks = Math.floor(p.companyReturnsStock / pShrink);
                     const currentShrinks = Math.floor(p.currentStock / pShrink);
+                    const currentLoose = p.currentStock % pShrink;
+                    const physicalShrinks = Math.floor(p.totalPhysicalStock / pShrink);
+                    const physicalLoose = p.totalPhysicalStock % pShrink;
 
                     return (
                       <tr key={p.id}>
                         <td className="font-bold text-gray-900 dark:text-slate-100">{p.name}</td>
                         <td className="font-mono text-xs text-gray-500">{p.sku}</td>
                         <td className="text-center font-semibold text-emerald-600 dark:text-emerald-400">
-                          {receivedShrinks > 0 ? `${receivedShrinks.toLocaleString('ar-EG')} ش` : '—'}
+                          {receivedShrinks > 0 ? `${receivedShrinks.toLocaleString('en-US')} ش` : '—'}
                         </td>
                         <td className="text-center font-semibold text-blue-600 dark:text-sky-400">
-                          {dispatchedShrinks > 0 ? `${dispatchedShrinks.toLocaleString('ar-EG')} ش` : '—'}
+                          {dispatchedShrinks > 0 ? `${dispatchedShrinks.toLocaleString('en-US')} ش` : '—'}
                         </td>
                         <td className="text-center font-semibold text-amber-600 dark:text-amber-400">
-                          {returnedShrinks > 0 ? `${returnedShrinks.toLocaleString('ar-EG')} ش` : '—'}
+                          {returnedShrinks > 0 ? `${returnedShrinks.toLocaleString('en-US')} ش` : '—'}
                         </td>
                         <td className="text-center font-semibold text-rose-600 dark:text-rose-400">
-                          {damagedShrinks > 0 ? `${damagedShrinks.toLocaleString('ar-EG')} ش` : '—'}
+                          {p.companyReturnsStock > 0 ? `${companyShrinks.toLocaleString('en-US')} ش${p.companyReturnsStock % pShrink > 0 ? ` + ${p.companyReturnsStock % pShrink} ق` : ''}` : '—'}
                         </td>
                         <td className="text-center bg-emerald-50/40 dark:bg-emerald-950/10">
                           <span className="font-black text-base text-emerald-800 dark:text-emerald-300">
-                            {currentShrinks.toLocaleString('ar-EG')} شرنك
+                            {currentShrinks.toLocaleString('en-US')} شرنك{currentLoose > 0 ? ` + ${currentLoose} ق` : ''}
                           </span>
-                          <span className="block text-[11px] text-gray-400">({p.currentStock.toLocaleString('ar-EG')} ق)</span>
+                          <span className="block text-[11px] text-gray-400">({p.currentStock.toLocaleString('en-US')} ق)</span>
+                        </td>
+                        <td className="text-center bg-blue-50/40 dark:bg-sky-950/10">
+                          <span className="font-black text-base text-blue-800 dark:text-sky-300">
+                            {physicalShrinks.toLocaleString('en-US')} شرنك{physicalLoose > 0 ? ` + ${physicalLoose} ق` : ''}
+                          </span>
+                          <span className="block text-[11px] text-gray-400">({p.totalPhysicalStock.toLocaleString('en-US')} ق)</span>
                         </td>
                         <td><StatusBadge variant={p.isLowStock ? 'warning' : 'success'}>{p.isLowStock ? 'منخفض' : 'جيد'}</StatusBadge></td>
                       </tr>
@@ -169,8 +184,8 @@ export default function ReportsPage() {
                           {l.items.map((i) => `${getProductName(i.productId)}: ${i.quantityShrinks} شرنك`).join(' | ')}
                         </td>
                         <td className="text-center font-bold">
-                          <span className="font-black text-emerald-700 dark:text-emerald-400">{totalShrinks.toLocaleString('ar-EG')} شرنك</span>
-                          <span className="block text-[11px] text-gray-400 font-normal">({totalPieces.toLocaleString('ar-EG')} ق)</span>
+                          <span className="font-black text-emerald-700 dark:text-emerald-400">{totalShrinks.toLocaleString('en-US')} شرنك</span>
+                          <span className="block text-[11px] text-gray-400 font-normal">({totalPieces.toLocaleString('en-US')} ق)</span>
                         </td>
                       </tr>
                     );
@@ -212,10 +227,10 @@ export default function ReportsPage() {
                         <td>{getSalesmanName(r.salesmanId)}</td>
                         <td>{getProductName(r.productId)}</td>
                         <td className="text-center">
-                          <span className="font-bold text-emerald-700 dark:text-emerald-400">{shrinks.toLocaleString('ar-EG')} شرنك</span>
-                          <span className="block text-[11px] text-gray-400">({r.quantityPieces.toLocaleString('ar-EG')} ق)</span>
+                          <span className="font-bold text-emerald-700 dark:text-emerald-400">{shrinks.toLocaleString('en-US')} شرنك{r.quantityPieces % pShrink > 0 ? ` + ${r.quantityPieces % pShrink} ق` : ''}</span>
+                          <span className="block text-[11px] text-gray-400">({r.quantityPieces.toLocaleString('en-US')} ق)</span>
                         </td>
-                        <td><StatusBadge variant={r.condition === 'good' ? 'success' : r.condition === 'pending' ? 'warning' : 'danger'}>{r.condition === 'good' ? 'سليم' : r.condition === 'pending' ? 'معلق' : 'تالف'}</StatusBadge></td>
+                        <td><StatusBadge variant={r.condition === RETURN_CONDITIONS.GOOD ? 'success' : r.condition === RETURN_CONDITIONS.PENDING ? 'warning' : r.condition === RETURN_CONDITIONS.PARTIAL ? 'info' : 'danger'}>{RETURN_CONDITION_LABELS[r.condition] || r.condition}</StatusBadge></td>
                       </tr>
                     );
                   })}
@@ -255,8 +270,8 @@ export default function ReportsPage() {
                         <td>{formatDate(d.date)}</td>
                         <td>{getProductName(d.productId)}</td>
                         <td className="text-center">
-                          <span className="font-bold text-rose-600 dark:text-rose-400">{shrinks.toLocaleString('ar-EG')} شرنك</span>
-                          <span className="block text-[11px] text-gray-400">({d.quantityPieces.toLocaleString('ar-EG')} ق)</span>
+                          <span className="font-bold text-rose-600 dark:text-rose-400">{shrinks.toLocaleString('en-US')} شرنك</span>
+                          <span className="block text-[11px] text-gray-400">({d.quantityPieces.toLocaleString('en-US')} ق)</span>
                         </td>
                         <td className="text-sm">{d.reason}</td>
                         <td><StatusBadge variant={d.reviewStatus === 'approved' ? 'success' : 'warning'}>{d.reviewStatus === 'approved' ? 'معتمد' : 'قيد المراجعة'}</StatusBadge></td>

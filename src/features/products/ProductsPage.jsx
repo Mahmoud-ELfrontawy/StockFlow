@@ -1,4 +1,4 @@
-// STOCKFLOW — PRODUCTS PAGE
+﻿// STOCKFLOW — PRODUCTS PAGE
 import { useState, useMemo } from 'react';
 import { Plus, Edit2, Power, Package } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -88,7 +88,7 @@ function ProductForm({ defaultValues, onSubmit, onClose }) {
             />
             {minPiecesEquivalent > 0 && (
               <span className="text-xs text-gray-500 whitespace-nowrap bg-gray-100 dark:bg-slate-800 px-3 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700">
-                يعادل: <strong>{minPiecesEquivalent.toLocaleString('ar-EG')} قطعة</strong>
+                يعادل: <strong>{minPiecesEquivalent.toLocaleString('en-US')} قطعة</strong>
               </span>
             )}
           </div>
@@ -172,10 +172,10 @@ export default function ProductsPage() {
       return (
         <div>
           <span className={`font-black text-sm ${row.isLowStock ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
-            {shrinks.toLocaleString('ar-EG')} شرنك
+            {shrinks.toLocaleString('en-US')} شرنك
             {remainderPieces > 0 && <span className="text-xs font-normal text-gray-500 mr-1">(+{remainderPieces} ق)</span>}
           </span>
-          <p className="text-xs text-gray-400">{val.toLocaleString('ar-EG')} قطعة</p>
+          <p className="text-xs text-gray-400">{val.toLocaleString('en-US')} قطعة</p>
         </div>
       );
     }},

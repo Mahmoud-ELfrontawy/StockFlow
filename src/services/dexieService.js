@@ -58,6 +58,10 @@ class DexieService {
     return await db[table].toArray();
   }
 
+  async add(table, record) {
+    return await db[table].put(record);
+  }
+
   async put(table, record) {
     return await db[table].put(record);
   }
@@ -72,6 +76,10 @@ class DexieService {
 
   async clearTable(table) {
     return await db[table].clear();
+  }
+
+  async delete(table, key) {
+    return await db[table].delete(key);
   }
 
   // ── Settings ───────────────────────────────────────────
@@ -107,6 +115,33 @@ class DexieService {
     );
   }
 
+  async atomicUpdateLoading(loadingDoc, ledgerEntries) {
+    return await db.transaction('rw',
+      db.loadingTransactions,
+      db.stockTransactions,
+      async () => {
+        const existing = await db.loadingTransactions.get(loadingDoc.id);
+        if (!existing) throw new Error('إذن التحميل غير موجود أو تم حذفه');
+
+        const duplicate = await db.loadingTransactions
+          .where('referenceNumber')
+          .equals(loadingDoc.referenceNumber)
+          .filter((row) => row.id !== loadingDoc.id)
+          .first();
+        if (duplicate) throw new Error(`رقم التحميل ${loadingDoc.referenceNumber} مسجل مسبقاً`);
+
+        const oldEntries = await db.stockTransactions
+          .where('referenceNumber')
+          .equals(existing.referenceNumber)
+          .filter((tx) => tx.type === 'loading')
+          .toArray();
+        await db.stockTransactions.bulkDelete(oldEntries.map((tx) => tx.id));
+        await db.loadingTransactions.put(loadingDoc);
+        if (ledgerEntries.length) await db.stockTransactions.bulkAdd(ledgerEntries);
+      }
+    );
+  }
+
   // ── Atomic Stock-In Transaction ────────────────────────
   async atomicReceiveStock(ledgerEntries) {
     return await db.transaction('rw',
@@ -128,6 +163,75 @@ class DexieService {
     );
   }
 
+  async atomicReplaceStockGroup(type, oldReference, ledgerEntries) {
+    return await db.transaction('rw', db.stockTransactions, async () => {
+      const oldEntries = await db.stockTransactions
+        .where('referenceNumber')
+        .equals(oldReference)
+        .filter((tx) => tx.type === type)
+        .toArray();
+      if (!oldEntries.length) throw new Error('الإذن غير موجود أو لا يمكن تعديله');
+
+      const oldIds = new Set(oldEntries.map((tx) => tx.id));
+      const newReference = ledgerEntries[0]?.referenceNumber;
+      if (newReference && newReference !== oldReference) {
+        const duplicate = await db.stockTransactions
+          .where('referenceNumber')
+          .equals(newReference)
+          .filter((tx) => !oldIds.has(tx.id))
+          .first();
+        if (duplicate) throw new Error(`رقم الإذن ${newReference} مستخدم بالفعل`);
+      }
+
+      await db.stockTransactions.bulkDelete([...oldIds]);
+      if (ledgerEntries.length) await db.stockTransactions.bulkAdd(ledgerEntries);
+    });
+  }
+
+  async atomicReplaceReturnBatch(referenceNumber, returnDocs, ledgerEntries) {
+    return await db.transaction('rw', db.returnTransactions, db.stockTransactions, async () => {
+      const oldReturns = await db.returnTransactions
+        .where('referenceNumber')
+        .equals(referenceNumber)
+        .toArray();
+      if (!oldReturns.length) throw new Error('إذن المرتجع غير موجود أو لا يمكن تعديله');
+
+      const oldLedger = await db.stockTransactions
+        .where('referenceNumber')
+        .equals(referenceNumber)
+        .filter((tx) => ['return_replacement', 'return_good', 'return_damaged'].includes(tx.type))
+        .toArray();
+
+      if (returnDocs[0]?.referenceNumber !== referenceNumber) {
+        const duplicate = await db.returnTransactions
+          .where('referenceNumber')
+          .equals(returnDocs[0]?.referenceNumber)
+          .first();
+        if (duplicate) throw new Error(`رقم المرتجع ${returnDocs[0].referenceNumber} مستخدم بالفعل`);
+      }
+
+      await db.returnTransactions.bulkDelete(oldReturns.map((row) => row.id));
+      await db.stockTransactions.bulkDelete(oldLedger.map((tx) => tx.id));
+      if (returnDocs.length) await db.returnTransactions.bulkAdd(returnDocs);
+      if (ledgerEntries.length) await db.stockTransactions.bulkAdd(ledgerEntries);
+    });
+  }
+
+  async atomicUpdateDamage(damageDoc, ledgerEntry) {
+    return await db.transaction('rw', db.damageRecords, db.stockTransactions, async () => {
+      const existing = await db.damageRecords.get(damageDoc.id);
+      if (!existing) throw new Error('سجل التالف غير موجود أو تم حذفه');
+      const oldEntries = await db.stockTransactions
+        .where('referenceNumber')
+        .equals(existing.referenceNumber)
+        .filter((tx) => tx.type === 'damage')
+        .toArray();
+      await db.stockTransactions.bulkDelete(oldEntries.map((tx) => tx.id));
+      await db.damageRecords.put(damageDoc);
+      if (ledgerEntry) await db.stockTransactions.add(ledgerEntry);
+    });
+  }
+
   // ── Atomic Return Transaction ──────────────────────────
   async atomicRecordReturn(returnDoc, ledgerEntry) {
     return await db.transaction('rw',
@@ -142,18 +246,61 @@ class DexieService {
     );
   }
 
+  // ── Atomic Multiple Returns Transaction ─────────────────
+  async atomicRecordReturns(returnDocs, ledgerEntries) {
+    return await db.transaction('rw',
+      db.returnTransactions,
+      db.stockTransactions,
+      async () => {
+        if (returnDocs && returnDocs.length > 0) {
+          await db.returnTransactions.bulkAdd(returnDocs);
+        }
+        if (ledgerEntries && ledgerEntries.length > 0) {
+          await db.stockTransactions.bulkAdd(ledgerEntries);
+        }
+      }
+    );
+  }
+
   // ── Atomic Approve Pending Return ─────────────────────
-  async atomicApproveReturn(returnId, updatedReturn, ledgerEntry) {
+  async atomicApproveReturn(returnId, updatedReturn, ledgerEntries) {
+    const entries = Array.isArray(ledgerEntries)
+      ? ledgerEntries.filter(Boolean)
+      : ledgerEntries
+      ? [ledgerEntries]
+      : [];
+
     return await db.transaction('rw',
       db.returnTransactions,
       db.stockTransactions,
       async () => {
         await db.returnTransactions.put(updatedReturn);
-        if (ledgerEntry) {
-          await db.stockTransactions.add(ledgerEntry);
+        if (entries.length > 0) {
+          await db.stockTransactions.bulkAdd(entries);
         }
       }
     );
+  }
+
+  // ── Atomic Dispatch Company Returns ───────────────────
+  async atomicDispatchCompanyReturns(ledgerEntries) {
+    const entries = Array.isArray(ledgerEntries) ? ledgerEntries : [ledgerEntries];
+    return await db.transaction('rw',
+      db.stockTransactions,
+      async () => {
+        if (entries.length > 0) {
+          await db.stockTransactions.bulkAdd(entries);
+        }
+      }
+    );
+  }
+
+  async atomicUpdateStockTransaction(transaction) {
+    return await db.transaction('rw', db.stockTransactions, async () => {
+      const current = await db.stockTransactions.get(transaction.id);
+      if (!current) throw new Error('حركة المخزون غير موجودة أو تم حذفها');
+      await db.stockTransactions.put(transaction);
+    });
   }
 
   // ── Atomic Damage Record ───────────────────────────────
@@ -176,10 +323,35 @@ class DexieService {
       db.stocktakingSessions,
       db.stockTransactions,
       async () => {
+        const current = await db.stocktakingSessions.get(sessionId);
+        if (!current || current.status !== 'pending') {
+          throw new Error('جلسة الجرد لم تعد قيد المراجعة');
+        }
         await db.stocktakingSessions.put(updatedSession);
         if (adjustmentEntries && adjustmentEntries.length > 0) {
           await db.stockTransactions.bulkAdd(adjustmentEntries);
         }
+      }
+    );
+  }
+
+  async atomicUpdateApprovedStocktaking(sessionId, updatedSession, adjustmentEntries) {
+    return await db.transaction('rw',
+      db.stocktakingSessions,
+      db.stockTransactions,
+      async () => {
+        const current = await db.stocktakingSessions.get(sessionId);
+        if (!current || current.status !== 'approved') {
+          throw new Error('Stocktaking session is no longer approved');
+        }
+        const oldAdjustments = await db.stockTransactions
+          .where('referenceNumber')
+          .equals(current.referenceNumber)
+          .filter((tx) => tx.type === 'adjustment')
+          .toArray();
+        await db.stockTransactions.bulkDelete(oldAdjustments.map((tx) => tx.id));
+        await db.stocktakingSessions.put(updatedSession);
+        if (adjustmentEntries.length) await db.stockTransactions.bulkAdd(adjustmentEntries);
       }
     );
   }

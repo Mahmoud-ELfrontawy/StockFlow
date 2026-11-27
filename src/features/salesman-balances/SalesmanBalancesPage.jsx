@@ -1,4 +1,4 @@
-// STOCKFLOW — SALESMAN BALANCES PAGE
+﻿// STOCKFLOW — SALESMAN BALANCES PAGE
 import { useState, useMemo } from 'react';
 import { ClipboardList, AlertCircle, Package } from 'lucide-react';
 import useInventoryStore from '../../store/inventoryStore';
@@ -8,7 +8,7 @@ import StatusBadge from '../../components/common/StatusBadge';
 import { calculateSalesmanProductBalance } from '../../utils/stockCalculations';
 
 export default function SalesmanBalancesPage() {
-  const { salesmen, products, loadingTransactions, returnTransactions } = useInventoryStore();
+  const { salesmen, products, loadingTransactions, returnTransactions, damageRecords } = useInventoryStore();
   const [selectedSalesman, setSelectedSalesman] = useState('');
 
   const activeSalesmen = salesmen.filter((s) => s.status === 'active');
@@ -23,7 +23,8 @@ export default function SalesmanBalancesPage() {
           product.id,
           loadingTransactions,
           returnTransactions,
-          []
+          [],
+          damageRecords
         );
         const totalLoaded = loadingTransactions
           .filter((l) => l.salesmanId === selectedSalesman)
@@ -31,7 +32,7 @@ export default function SalesmanBalancesPage() {
           .filter((i) => i.productId === product.id)
           .reduce((s, i) => s + i.quantityPieces, 0);
         const totalReturned = returnTransactions
-          .filter((r) => r.salesmanId === selectedSalesman && r.productId === product.id && r.condition === 'good')
+          .filter((r) => r.salesmanId === selectedSalesman && r.productId === product.id && !r.isExchange)
           .reduce((s, r) => s + r.quantityPieces, 0);
 
         const pShrink = product.piecesPerShrink || 24;
@@ -51,8 +52,8 @@ export default function SalesmanBalancesPage() {
           totalReturnedShrinks,
         };
       })
-      .filter((p) => p.totalLoaded > 0);
-  }, [selectedSalesman, products, loadingTransactions, returnTransactions]);
+      .filter((p) => p.totalLoaded > 0 || p.totalReturned > 0 || p.balance !== 0);
+  }, [selectedSalesman, products, loadingTransactions, returnTransactions, damageRecords]);
 
   const totalLoadedShrinks = balances.reduce((s, p) => s + p.totalLoadedShrinks, 0);
   const totalLoadedPieces = balances.reduce((s, p) => s + p.totalLoaded, 0);
@@ -107,16 +108,16 @@ export default function SalesmanBalancesPage() {
             <div className="card text-center py-5 bg-blue-50/50 dark:bg-sky-950/20 border-blue-200 dark:border-sky-800">
               <p className="text-xs text-blue-700 dark:text-sky-400 font-bold mb-1">إجمالي المحمّل</p>
               <p className="text-2xl font-black text-blue-800 dark:text-sky-300">
-                {totalLoadedShrinks.toLocaleString('ar-EG')} شرنك
+                {totalLoadedShrinks.toLocaleString('en-US')} شرنك
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">({totalLoadedPieces.toLocaleString('ar-EG')} قطعة)</p>
+              <p className="text-xs text-gray-400 mt-0.5">({totalLoadedPieces.toLocaleString('en-US')} قطعة)</p>
             </div>
             <div className="card text-center py-5 bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800">
               <p className="text-xs text-emerald-700 dark:text-emerald-400 font-bold mb-1">العهدة الحالية المقدرة</p>
               <p className="text-2xl font-black text-emerald-800 dark:text-emerald-300">
-                {totalBalanceShrinks.toLocaleString('ar-EG')} شرنك
+                {totalBalanceShrinks.toLocaleString('en-US')} شرنك
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">({totalBalancePieces.toLocaleString('ar-EG')} قطعة)</p>
+              <p className="text-xs text-gray-400 mt-0.5">({totalBalancePieces.toLocaleString('en-US')} قطعة)</p>
             </div>
           </div>
 
@@ -144,21 +145,21 @@ export default function SalesmanBalancesPage() {
                         </td>
                         <td className="text-center">
                           <span className="font-bold text-blue-700 dark:text-sky-400">
-                            {p.totalLoadedShrinks.toLocaleString('ar-EG')} شرنك
+                            {p.totalLoadedShrinks.toLocaleString('en-US')} شرنك
                           </span>
-                          <span className="block text-[11px] text-gray-400">({p.totalLoaded.toLocaleString('ar-EG')} ق)</span>
+                          <span className="block text-[11px] text-gray-400">({p.totalLoaded.toLocaleString('en-US')} ق)</span>
                         </td>
                         <td className="text-center">
                           <span className="font-semibold text-amber-600 dark:text-amber-400">
-                            {p.totalReturnedShrinks.toLocaleString('ar-EG')} شرنك
+                            {p.totalReturnedShrinks.toLocaleString('en-US')} شرنك
                           </span>
                           {p.totalReturned > 0 && (
-                            <span className="block text-[11px] text-gray-400">({p.totalReturned.toLocaleString('ar-EG')} ق)</span>
+                            <span className="block text-[11px] text-gray-400">({p.totalReturned.toLocaleString('en-US')} ق)</span>
                           )}
                         </td>
                         <td className="text-center bg-emerald-50/30 dark:bg-emerald-950/10">
                           <span className="text-lg font-black text-emerald-700 dark:text-emerald-400">
-                            {p.balanceShrinks.toLocaleString('ar-EG')} شرنك
+                            {p.balanceShrinks.toLocaleString('en-US')} شرنك
                           </span>
                           {p.balanceLoosePieces > 0 && (
                             <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 mr-1">
@@ -166,7 +167,7 @@ export default function SalesmanBalancesPage() {
                             </span>
                           )}
                           <span className="block text-[11px] text-gray-400">
-                            ({p.balance.toLocaleString('ar-EG')} قطعة)
+                            ({p.balance.toLocaleString('en-US')} قطعة)
                           </span>
                         </td>
                         <td>

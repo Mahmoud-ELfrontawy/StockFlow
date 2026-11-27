@@ -30,7 +30,7 @@ export default function Header({ onMenuClick }) {
   const { isDark, toggleTheme } = useTheme();
   const pageTitle = ROUTE_LABELS[location.pathname] || 'ستوك فلو';
 
-  const today = new Date().toLocaleDateString('ar-EG', {
+  const today = new Date().toLocaleDateString('ar-EG-u-nu-latn', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',

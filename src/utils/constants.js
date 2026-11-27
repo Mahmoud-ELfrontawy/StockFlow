@@ -13,17 +13,21 @@ export const TRANSACTION_TYPES = {
   LOADING: 'loading',
   RETURN_GOOD: 'return_good',
   RETURN_DAMAGED: 'return_damaged',
+  RETURN_REPLACEMENT: 'return_replacement',
+  COMPANY_RETURN_DISPATCH: 'company_return_dispatch',
   DAMAGE: 'damage',
   ADJUSTMENT: 'adjustment',
   REVERSAL: 'reversal',
 };
 
 export const TRANSACTION_TYPE_LABELS = {
-  [TRANSACTION_TYPES.OPENING_BALANCE]: 'رصيد افتتاحي',
+  [TRANSACTION_TYPES.OPENING_BALANCE]: 'رصيد قديم',
   [TRANSACTION_TYPES.STOCK_IN]: 'استلام بضاعة',
   [TRANSACTION_TYPES.LOADING]: 'تحميل',
-  [TRANSACTION_TYPES.RETURN_GOOD]: 'مرتجع سليم',
-  [TRANSACTION_TYPES.RETURN_DAMAGED]: 'مرتجع تالف',
+  [TRANSACTION_TYPES.RETURN_GOOD]: 'مرتجع سليم (صالح للبيع)',
+  [TRANSACTION_TYPES.RETURN_DAMAGED]: 'مرتجع هيرجع للشركة',
+  [TRANSACTION_TYPES.RETURN_REPLACEMENT]: 'صرف بدل مرتجع',
+  [TRANSACTION_TYPES.COMPANY_RETURN_DISPATCH]: 'تسليم مرتجعات للشركة',
   [TRANSACTION_TYPES.DAMAGE]: 'بضاعة تالفة',
   [TRANSACTION_TYPES.ADJUSTMENT]: 'تسوية جرد',
   [TRANSACTION_TYPES.REVERSAL]: 'عكس معاملة',
@@ -31,15 +35,17 @@ export const TRANSACTION_TYPE_LABELS = {
 
 // ─── Return Conditions ───────────────────────────────────────
 export const RETURN_CONDITIONS = {
-  GOOD: 'good',
-  DAMAGED: 'damaged',
-  PENDING: 'pending',
+  GOOD: 'good',          // sorted as 100% sellable — back to available stock
+  COMPANY: 'damaged',    // sorted as 100% going back to company (keep 'damaged' key for compatibility)
+  PARTIAL: 'partial',    // sorted into both good pieces + company return pieces
+  PENDING: 'pending',    // not yet sorted — physically in warehouse under inspection
 };
 
 export const RETURN_CONDITION_LABELS = {
-  [RETURN_CONDITIONS.GOOD]: 'سليم (قابل للبيع)',
-  [RETURN_CONDITIONS.DAMAGED]: 'تالف',
-  [RETURN_CONDITIONS.PENDING]: 'قيد الفحص',
+  [RETURN_CONDITIONS.GOOD]: 'سليم بالكامل (صالح للبيع)',
+  [RETURN_CONDITIONS.COMPANY]: 'مرتجع للشركة بالكامل',
+  [RETURN_CONDITIONS.PARTIAL]: 'تم الفرز (سليم + للشركة)',
+  [RETURN_CONDITIONS.PENDING]: 'قيد الفحص / الفرز',
 };
 
 // ─── Stocktaking Status ──────────────────────────────────────

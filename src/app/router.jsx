@@ -13,6 +13,7 @@ import LoadingState from '../components/common/LoadingState';
 const Dashboard     = lazy(() => import('../features/dashboard/DashboardPage'));
 const Products      = lazy(() => import('../features/products/ProductsPage'));
 const Warehouse     = lazy(() => import('../features/warehouse/WarehousePage'));
+const OldStock      = lazy(() => import('../features/old-stock/OldStockPage'));
 const StockIn       = lazy(() => import('../features/stock-in/StockInPage'));
 const Loading       = lazy(() => import('../features/loading/LoadingPage'));
 const Salesmen      = lazy(() => import('../features/salesmen/SalesmenPage'));
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
       { index: true,                   element: <Wrap><Dashboard /></Wrap> },
       { path: 'products',              element: <Wrap><Products /></Wrap> },
       { path: 'warehouse',             element: <Wrap><Warehouse /></Wrap> },
+      { path: 'old-stock',             element: <Wrap><OldStock /></Wrap> },
       { path: 'stock-in',              element: <Wrap><StockIn /></Wrap> },
       { path: 'loading',               element: <Wrap><Loading /></Wrap> },
       { path: 'salesmen',              element: <Wrap><Salesmen /></Wrap> },

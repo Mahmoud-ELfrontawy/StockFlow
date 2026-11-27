@@ -4,7 +4,7 @@
 // ============================================================
 
 import { useState, useMemo } from 'react';
-import { Plus, Trash2, Truck, Printer, CheckCircle, Eye } from 'lucide-react';
+import { Plus, Trash2, Truck, Printer, CheckCircle, Eye, Pencil } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -37,7 +37,7 @@ const schema = z.object({
 });
 
 // ─── Loading Form ─────────────────────────────────────────────
-function LoadingForm({ products, salesmen, stockTransactions, onSubmit, onClose }) {
+function LoadingForm({ products, salesmen, stockTransactions, initialValues, onSubmit, onClose }) {
   const {
     register,
     handleSubmit,
@@ -46,10 +46,8 @@ function LoadingForm({ products, salesmen, stockTransactions, onSubmit, onClose 
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(schema),
-    defaultValues: {
-      date: todayISO(),
-      salesmanId: '',
-      notes: '',
+    defaultValues: initialValues || {
+      date: todayISO(), salesmanId: '', notes: '',
       items: [{ productId: '', quantityShrinks: '' }],
     },
   });
@@ -61,7 +59,10 @@ function LoadingForm({ products, salesmen, stockTransactions, onSubmit, onClose 
 
   const getAvailableStock = (productId) => {
     if (!productId) return 0;
-    return calculateWarehouseStock(productId, stockTransactions);
+    const alreadyLoaded = initialValues?.items
+      ?.filter((item) => item.productId === productId)
+      .reduce((sum, item) => sum + (item.quantityPieces || 0), 0) || 0;
+    return calculateWarehouseStock(productId, stockTransactions) + alreadyLoaded;
   };
 
   const { totalItems, totalShrinks } = useMemo(() => {
@@ -94,7 +95,7 @@ function LoadingForm({ products, salesmen, stockTransactions, onSubmit, onClose 
           <select {...register('salesmanId')} className="form-input">
             <option value="">اختر المندوب</option>
             {salesmen
-              .filter((s) => s.status === 'active')
+              .filter((s) => s.status === 'active' || s.id === initialValues?.salesmanId)
               .map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name} ({s.employeeCode})
@@ -126,7 +127,12 @@ function LoadingForm({ products, salesmen, stockTransactions, onSubmit, onClose 
             const requested = product && item?.quantityShrinks
               ? Math.round(Number(item.quantityShrinks) * product.piecesPerShrink)
               : 0;
-            const isInsufficient = requested > available && available > 0;
+            const totalRequestedForProduct = product
+              ? (watchedItems || [])
+                  .filter((entry) => entry.productId === item?.productId)
+                  .reduce((sum, entry) => sum + Math.round((Number(entry.quantityShrinks) || 0) * product.piecesPerShrink), 0)
+              : requested;
+            const isInsufficient = requested > 0 && totalRequestedForProduct > available;
 
             return (
               <div
@@ -146,14 +152,14 @@ function LoadingForm({ products, salesmen, stockTransactions, onSubmit, onClose 
                     >
                       <option value="">اختر المنتج</option>
                       {products
-                        .filter((p) => p.isActive)
+                        .filter((p) => p.isActive || initialValues?.items?.some((old) => old.productId === p.id))
                         .map((p) => {
-                          const stock = calculateWarehouseStock(p.id, stockTransactions);
+                          const stock = getAvailableStock(p.id);
                           const pPerShrink = p.piecesPerShrink || 24;
                           const stockShrinks = Math.floor(stock / pPerShrink);
                           return (
                             <option key={p.id} value={p.id} disabled={stock <= 0}>
-                              {p.name} — متاح: {stockShrinks.toLocaleString('ar-EG')} شرنك
+                              {p.name} — متاح: {stockShrinks.toLocaleString('en-US')} شرنك
                             </option>
                           );
                         })}
@@ -165,9 +171,9 @@ function LoadingForm({ products, salesmen, stockTransactions, onSubmit, onClose 
                       return (
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           المتاح: <span className={availableShrinks < minShrinks ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-emerald-700 dark:text-emerald-400 font-bold'}>
-                            {availableShrinks.toLocaleString('ar-EG')} شرنك
+                            {availableShrinks.toLocaleString('en-US')} شرنك
                           </span>
-                          {' '}<span className="text-gray-400 font-normal">({available.toLocaleString('ar-EG')} قطعة · {product.piecesPerShrink} ق/ش)</span>
+                          {' '}<span className="text-gray-400 font-normal">({available.toLocaleString('en-US')} قطعة · {product.piecesPerShrink} ق/ش)</span>
                         </p>
                       );
                     })()}
@@ -200,7 +206,7 @@ function LoadingForm({ products, salesmen, stockTransactions, onSubmit, onClose 
                           : 'bg-slate-100 border-slate-200 text-slate-700 dark:bg-slate-800/90 dark:border-slate-700 dark:text-sky-300'
                       }`}
                     >
-                      {requested > 0 ? `${requested.toLocaleString('ar-EG')} ق` : '—'}
+                      {requested > 0 ? `${requested.toLocaleString('en-US')} ق` : '—'}
                     </div>
                     {isInsufficient && (
                       <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-semibold">
@@ -234,13 +240,13 @@ function LoadingForm({ products, salesmen, stockTransactions, onSubmit, onClose 
           <div>
             <span className="text-xs text-blue-800 dark:text-slate-400 font-bold block mb-0.5">إجمالي الحمولة المسجلة</span>
             <span className="text-xl font-black text-blue-900 dark:text-sky-300">
-              {totalShrinks.toLocaleString('ar-EG')} شرنك
+              {totalShrinks.toLocaleString('en-US')} شرنك
             </span>
           </div>
           <div className="text-left">
             <span className="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">يعادل بالقطع</span>
             <span className="text-base font-bold text-slate-700 dark:text-slate-300">
-              {totalItems.toLocaleString('ar-EG')} قطعة
+              {totalItems.toLocaleString('en-US')} قطعة
             </span>
           </div>
         </div>
@@ -312,14 +318,14 @@ function LoadingReceipt({ loading, products, salesmen, onClose }) {
                   <tr key={i}>
                     <td className="font-medium text-gray-900 dark:text-slate-100">{product?.name || item.productId}</td>
                     <td className="text-center font-bold text-emerald-700 dark:text-emerald-400">{item.quantityShrinks}</td>
-                    <td className="text-center text-gray-500 dark:text-gray-400">{item.quantityPieces.toLocaleString('ar-EG')}</td>
+                    <td className="text-center text-gray-500 dark:text-gray-400">{item.quantityPieces.toLocaleString('en-US')}</td>
                   </tr>
                 );
               })}
               <tr className="bg-blue-50/50 dark:bg-sky-950/30 font-bold">
                 <td>الإجمالي</td>
-                <td className="text-center text-emerald-700 dark:text-emerald-400">{totalShrinks.toLocaleString('ar-EG')} شرنك</td>
-                <td className="text-center text-blue-700 dark:text-sky-300">{totalPieces.toLocaleString('ar-EG')} ق</td>
+                <td className="text-center text-emerald-700 dark:text-emerald-400">{totalShrinks.toLocaleString('en-US')} شرنك</td>
+                <td className="text-center text-blue-700 dark:text-sky-300">{totalPieces.toLocaleString('en-US')} ق</td>
               </tr>
             </tbody>
           </table>
@@ -362,9 +368,11 @@ export default function LoadingPage() {
     stockTransactions,
     loadingTransactions,
     createLoading,
+    updateLoading,
   } = useInventoryStore();
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingLoading, setEditingLoading] = useState(null);
   const [receiptLoading, setReceiptLoading] = useState(null);
   const [search, setSearch] = useState('');
   const [filterSalesman, setFilterSalesman] = useState('');
@@ -380,7 +388,7 @@ export default function LoadingPage() {
       });
   }, [loadingTransactions, search, filterSalesman]);
 
-  const handleSubmit = (data) => {
+  const handleSubmit = async (data) => {
     const items = data.items.map((item) => {
       const product = products.find((p) => p.id === item.productId);
       const quantityPieces = Math.round(
@@ -394,18 +402,22 @@ export default function LoadingPage() {
       };
     });
 
-    const result = createLoading({
+    const payload = {
       date: data.date,
       salesmanId: data.salesmanId,
       notes: data.notes,
       items,
-    });
+    };
+    const result = editingLoading
+      ? await updateLoading(editingLoading.id, payload)
+      : await createLoading(payload);
 
     if (result.success) {
       toast.success(`✅ تم التحميل ${result.referenceNumber} بنجاح`);
       setModalOpen(false);
+      setEditingLoading(null);
     } else {
-      toast.error(result.message);
+      toast.error(result.message || 'حدث خطأ أثناء حفظ التحميل');
     }
   };
 
@@ -416,22 +428,25 @@ export default function LoadingPage() {
 
   const columns = [
     {
+      id: 'col-ref',
       key: 'referenceNumber',
       title: 'رقم التحميل',
       render: (val) => <span className="font-mono font-bold text-blue-600 dark:text-sky-400">#{val}</span>,
     },
-    { key: 'date', title: 'التاريخ', render: (val) => formatDate(val) },
+    { id: 'col-date', key: 'date', title: 'التاريخ', render: (val) => formatDate(val) },
     {
+      id: 'col-salesman',
       key: 'salesmanId',
       title: 'المندوب',
       render: (val) => <span className="font-medium text-gray-900 dark:text-slate-100">{getSalesmanName(val)}</span>,
     },
     {
+      id: 'col-items-list',
       key: 'items',
       title: 'الأصناف المحمّلة',
       render: (val) => (
         <div className="space-y-1">
-          {val.slice(0, 2).map((item, i) => {
+          {val && val.slice(0, 2).map((item, i) => {
             const p = products.find((pr) => pr.id === item.productId);
             return (
               <p key={i} className="text-xs">
@@ -440,44 +455,52 @@ export default function LoadingPage() {
                   {item.quantityShrinks} شرنك
                 </span>
                 <span className="text-[11px] text-gray-400 mr-1.5">
-                  ({item.quantityPieces.toLocaleString('ar-EG')} قطعة)
+                  ({item.quantityPieces ? item.quantityPieces.toLocaleString('en-US') : 0} قطعة)
                 </span>
               </p>
             );
           })}
-          {val.length > 2 && <p className="text-xs text-gray-400">+{val.length - 2} أصناف أخرى</p>}
+          {val && val.length > 2 && <p className="text-xs text-gray-400">+{val.length - 2} أصناف أخرى</p>}
         </div>
       ),
     },
     {
-      key: 'items',
+      id: 'col-total-shrinks',
+      key: 'totalShrinks',
       title: 'إجمالي المحمّل (شرنك)',
-      render: (val) => {
-        const totalShrinks = val.reduce((s, i) => s + (Number(i.quantityShrinks) || 0), 0);
-        const totalPieces = val.reduce((s, i) => s + i.quantityPieces, 0);
+      render: (_, row) => {
+        const rowItems = row.items || [];
+        const totalShrinks = rowItems.reduce((s, i) => s + (Number(i.quantityShrinks) || 0), 0);
+        const totalPieces = rowItems.reduce((s, i) => s + (i.quantityPieces || 0), 0);
         return (
           <div className="text-center">
             <span className="font-black text-base text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 rounded-xl border border-emerald-200 dark:border-emerald-800 inline-block">
-              {totalShrinks.toLocaleString('ar-EG')} شرنك
+              {totalShrinks.toLocaleString('en-US')} شرنك
             </span>
             <span className="block text-[11px] font-semibold text-gray-400 mt-0.5">
-              ({totalPieces.toLocaleString('ar-EG')} قطعة)
+              ({totalPieces.toLocaleString('en-US')} قطعة)
             </span>
           </div>
         );
       },
     },
     {
-      key: 'id',
+      id: 'col-actions',
+      key: 'actions',
       title: '',
       render: (_, row) => (
-        <button
-          onClick={() => setReceiptLoading(row)}
-          className="btn-icon text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 dark:hover:text-sky-400"
-          title="عرض الوصل"
-        >
-          <Eye size={15} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => { setEditingLoading(row); setModalOpen(true); }}
+            className="btn-icon text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800 dark:hover:text-amber-400 cursor-pointer"
+            title="تعديل إذن التحميل"
+          ><Pencil size={15} /></button>
+          <button
+            onClick={() => setReceiptLoading(row)}
+            className="btn-icon text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 dark:hover:text-sky-400 cursor-pointer"
+            title="عرض الوصل"
+          ><Eye size={15} /></button>
+        </div>
       ),
     },
   ];
@@ -488,7 +511,7 @@ export default function LoadingPage() {
         title="عمليات التحميل"
         subtitle={`${loadingTransactions.length} عملية تحميل مسجلة بالشرنكات`}
         actions={
-          <Button onClick={() => setModalOpen(true)}>
+          <Button onClick={() => { setEditingLoading(null); setModalOpen(true); }}>
             <Truck size={16} /> تحميل جديد
           </Button>
         }
@@ -535,16 +558,27 @@ export default function LoadingPage() {
       {/* New Loading Modal */}
       <Modal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="تسجيل عملية تحميل جديدة"
+        onClose={() => { setModalOpen(false); setEditingLoading(null); }}
+        title={editingLoading ? `تعديل إذن التحميل #${editingLoading.referenceNumber}` : 'تسجيل عملية تحميل جديدة'}
         size="xl"
       >
         <LoadingForm
+          key={editingLoading?.id || 'new-loading'}
           products={products}
           salesmen={salesmen}
           stockTransactions={stockTransactions}
+          initialValues={editingLoading ? {
+            date: editingLoading.date,
+            salesmanId: editingLoading.salesmanId,
+            notes: editingLoading.notes || '',
+            items: editingLoading.items.map((item) => ({
+              productId: item.productId,
+              quantityShrinks: item.quantityShrinks,
+              quantityPieces: item.quantityPieces,
+            })),
+          } : null}
           onSubmit={handleSubmit}
-          onClose={() => setModalOpen(false)}
+          onClose={() => { setModalOpen(false); setEditingLoading(null); }}
         />
       </Modal>
 

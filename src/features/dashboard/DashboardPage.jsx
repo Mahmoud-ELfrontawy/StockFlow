@@ -59,6 +59,8 @@ function getTypeColor(type) {
     [TRANSACTION_TYPES.LOADING]: 'info',
     [TRANSACTION_TYPES.RETURN_GOOD]: 'warning',
     [TRANSACTION_TYPES.RETURN_DAMAGED]: 'danger',
+    [TRANSACTION_TYPES.RETURN_REPLACEMENT]: 'danger',
+    [TRANSACTION_TYPES.COMPANY_RETURN_DISPATCH]: 'info',
     [TRANSACTION_TYPES.DAMAGE]: 'danger',
     [TRANSACTION_TYPES.ADJUSTMENT]: 'muted',
     [TRANSACTION_TYPES.OPENING_BALANCE]: 'muted',
@@ -74,8 +76,8 @@ export default function DashboardPage() {
 
   // ─── Summary Stats ───────────────────────────────────────────
   const stockSummary = useMemo(
-    () => buildWarehouseStockSummary(products, stockTransactions),
-    [products, stockTransactions]
+    () => buildWarehouseStockSummary(products, stockTransactions, returnTransactions),
+    [products, stockTransactions, returnTransactions]
   );
 
   const lowStockProducts = stockSummary.filter((p) => p.isLowStock);
@@ -105,7 +107,7 @@ export default function DashboardPage() {
       .flatMap((l) => l.items)
       .reduce((s, item) => s + item.quantityPieces, 0);
     return {
-      name: d.toLocaleDateString('ar-EG', { weekday: 'short', day: 'numeric' }),
+      name: d.toLocaleDateString('ar-EG-u-nu-latn', { weekday: 'short', day: 'numeric' }),
       عمليات: count,
       قطع: totalPieces,
     };
@@ -168,6 +170,8 @@ export default function DashboardPage() {
       {/* Total Shrinks In Warehouse */}
       {(() => {
         const totalWarehouseShrinks = stockSummary.reduce((s, p) => s + (p.currentStockShrinks ?? Math.floor(p.currentStock / (p.piecesPerShrink || 24))), 0);
+        const totalCompanyReturnsPieces = stockSummary.reduce((s, p) => s + (p.companyReturnsStock || 0), 0);
+        const totalCompanyReturnsShrinks = stockSummary.reduce((s, p) => s + (p.companyBreakdown?.totalShrinks || 0), 0);
         const totalStockInShrinks = filteredStockIn.reduce((s, tx) => {
           const prod = products.find(p => p.id === tx.productId);
           return s + Math.floor(tx.quantityPieces / (prod?.piecesPerShrink || 24));
@@ -177,22 +181,22 @@ export default function DashboardPage() {
         return (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <StatCard
-              title="إجمالي رصيد المخزن"
-              value={`${totalWarehouseShrinks.toLocaleString('ar-EG')} شرنك`}
-              subtitle={`${stockSummary.length} أصناف (${stockSummary.reduce((s, p) => s + p.currentStock, 0).toLocaleString('ar-EG')} قطعة)`}
+              title="رصيد المخزن الصالح للبيع"
+              value={`${totalWarehouseShrinks.toLocaleString('en-US')} شرنك`}
+              subtitle={`${stockSummary.length} أصناف (${stockSummary.reduce((s, p) => s + p.currentStock, 0).toLocaleString('en-US')} قطعة)${totalCompanyReturnsPieces > 0 ? ` · +${totalCompanyReturnsShrinks} ش للشركة` : ''}`}
               icon={Package}
               iconColor="bg-blue-100 text-blue-700 dark:bg-sky-950/60 dark:text-sky-400"
             />
             <StatCard
               title="الوارد المستلم"
-              value={`${totalStockInShrinks.toLocaleString('ar-EG')} شرنك`}
-              subtitle={`${filteredStockIn.length} إذن استلام (${totalStockInPieces.toLocaleString('ar-EG')} ق)`}
+              value={`${totalStockInShrinks.toLocaleString('en-US')} شرنك`}
+              subtitle={`${filteredStockIn.length} إذن استلام (${totalStockInPieces.toLocaleString('en-US')} ق)`}
               icon={PackagePlus}
               iconColor="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
             />
             <StatCard
               title="المنصرف والمحمّل"
-              value={`${totalLoadedShrinks.toLocaleString('ar-EG')} شرنك`}
+              value={`${totalLoadedShrinks.toLocaleString('en-US')} شرنك`}
               subtitle={`${filteredLoadings.length} عملية تحميل`}
               icon={Truck}
               iconColor="bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-400"
@@ -316,7 +320,7 @@ export default function DashboardPage() {
                           />
                         </div>
                         <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                          {currentShrinks.toLocaleString('ar-EG')} / {minShrinks.toLocaleString('ar-EG')} شرنك
+                          {currentShrinks.toLocaleString('en-US')} / {minShrinks.toLocaleString('en-US')} شرنك
                         </span>
                       </div>
                     </div>
@@ -354,8 +358,8 @@ export default function DashboardPage() {
                       const actShrinks = Math.floor(act.qty / pShrink);
                       return (
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                          <strong className="text-gray-900 dark:text-slate-100 font-bold">{actShrinks > 0 ? `${actShrinks.toLocaleString('ar-EG')} شرنك` : ''}</strong>
-                          {' '}<span className="text-gray-400">({act.qty.toLocaleString('ar-EG')} ق)</span> · {formatDate(act.date)}
+                          <strong className="text-gray-900 dark:text-slate-100 font-bold">{actShrinks > 0 ? `${actShrinks.toLocaleString('en-US')} شرنك` : ''}</strong>
+                          {' '}<span className="text-gray-400">({act.qty.toLocaleString('en-US')} ق)</span> · {formatDate(act.date)}
                         </p>
                       );
                     })()}

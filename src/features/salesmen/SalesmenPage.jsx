@@ -1,4 +1,4 @@
-// STOCKFLOW — SALESMEN PAGE
+﻿// STOCKFLOW — SALESMEN PAGE
 import { useState, useMemo } from 'react';
 import { Plus, Edit2, Power, Users } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -123,11 +123,11 @@ export default function SalesmenPage() {
       return (
         <div>
           <span className="font-bold text-sm text-emerald-700 dark:text-emerald-400">
-            {totalShrinks.toLocaleString('ar-EG')} شرنك
+            {totalShrinks.toLocaleString('en-US')} شرنك
           </span>
           {totalPieces > 0 && (
             <span className="block text-[11px] text-gray-400 font-normal">
-              ({totalPieces.toLocaleString('ar-EG')} ق)
+              ({totalPieces.toLocaleString('en-US')} ق)
             </span>
           )}
         </div>

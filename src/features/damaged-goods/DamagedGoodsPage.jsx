@@ -1,6 +1,6 @@
 // STOCKFLOW — DAMAGED GOODS PAGE
 import { useState, useMemo } from 'react';
-import { Plus, AlertTriangle } from 'lucide-react';
+import { Plus, AlertTriangle, Pencil } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -25,14 +25,15 @@ const schema = z.object({
   notes: z.string().optional(),
 });
 
-function DamageForm({ products, salesmen, onSubmit, onClose }) {
+function DamageForm({ products, salesmen, initialValues, onSubmit, onClose }) {
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(schema),
-    defaultValues: { date: todayISO(), source: DAMAGE_SOURCES.WAREHOUSE },
+    defaultValues: initialValues || { date: todayISO(), source: DAMAGE_SOURCES.WAREHOUSE },
   });
   const watchProductId = watch('productId');
   const product = products.find((p) => p.id === watchProductId);
   const watchQty = watch('quantityShrinks');
+  const watchSource = watch('source');
   const totalPieces = product && watchQty ? Math.round(Number(watchQty) * product.piecesPerShrink) : 0;
 
   return (
@@ -43,7 +44,7 @@ function DamageForm({ products, salesmen, onSubmit, onClose }) {
           <label className="form-label">المنتج *</label>
           <select {...register('productId')} className="form-input">
             <option value="">اختر المنتج</option>
-            {products.filter((p) => p.isActive).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {products.filter((p) => p.isActive || p.id === initialValues?.productId).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
           {errors.productId && <p className="form-error">{errors.productId.message}</p>}
         </div>
@@ -52,7 +53,7 @@ function DamageForm({ products, salesmen, onSubmit, onClose }) {
             الكمية بالشرنك *{product && <span className="text-gray-400 font-normal"> ({product.piecesPerShrink} ق/شرنك)</span>}
           </label>
           <input type="number" step="0.5" min="0.5" {...register('quantityShrinks')} className="form-input font-bold" placeholder="عدد الشرنكات التالفة" />
-          {totalPieces > 0 && <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-semibold">{totalPieces.toLocaleString('ar-EG')} قطعة ستُخصم من المخزن</p>}
+          {totalPieces > 0 && watchSource === 'warehouse' && <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-semibold">{totalPieces.toLocaleString('en-US')} قطعة ستُخصم من المخزن</p>}
           {errors.quantityShrinks && <p className="form-error">{errors.quantityShrinks.message}</p>}
         </div>
         <div>
@@ -84,8 +85,9 @@ function DamageForm({ products, salesmen, onSubmit, onClose }) {
 }
 
 export default function DamagedGoodsPage() {
-  const { products, salesmen, damageRecords, recordDamage, approveDamageRecord } = useInventoryStore();
+  const { products, salesmen, damageRecords, recordDamage, updateDamageRecord, approveDamageRecord } = useInventoryStore();
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingDamage, setEditingDamage] = useState(null);
   const [approveConfirm, setApproveConfirm] = useState(null);
 
   const sorted = useMemo(() => [...damageRecords].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)), [damageRecords]);
@@ -101,16 +103,30 @@ export default function DamagedGoodsPage() {
 
   const pendingCount = sorted.filter((d) => d.reviewStatus === 'pending').length;
 
-  const handleSubmit = (data) => {
+  const handleSubmit = async (data) => {
     const product = products.find((p) => p.id === data.productId);
-    const result = recordDamage({
+    const payload = {
       date: data.date, productId: data.productId,
       quantityPieces: Math.round(Number(data.quantityShrinks) * (product?.piecesPerShrink || 1)),
       piecesPerShrink: product?.piecesPerShrink, source: data.source,
       reason: data.reason, salesmanId: data.salesmanId || null, notes: data.notes,
-    });
-    if (result.success) { toast.success(`تم تسجيل التالف ${result.referenceNumber}`); setModalOpen(false); }
-    else toast.error(result.message);
+    };
+    const result = editingDamage
+      ? await updateDamageRecord(editingDamage.id, payload)
+      : await recordDamage(payload);
+    if (result.success) { toast.success(editingDamage ? 'تم حفظ تعديل التالف' : `تم تسجيل التالف ${result.referenceNumber}`); setModalOpen(false); setEditingDamage(null); }
+    else toast.error(result.message || 'حدث خطأ أثناء تسجيل التالف');
+  };
+
+  const handleApproveDamage = async () => {
+    try {
+      const result = await approveDamageRecord(approveConfirm.id);
+      if (!result?.success) throw new Error(result?.message || 'تعذر اعتماد تسجيل التالف');
+      toast.success('تم اعتماد تسجيل التالف');
+      setApproveConfirm(null);
+    } catch (error) {
+      toast.error(error.message || 'تعذر اعتماد تسجيل التالف');
+    }
   };
 
   const statusVariant = { pending: 'warning', approved: 'success', rejected: 'danger' };
@@ -128,45 +144,68 @@ export default function DamagedGoodsPage() {
       return (
         <div>
           <span className="font-bold text-sm text-rose-600 dark:text-rose-400">
-            {shrinks.toLocaleString('ar-EG')} شرنك
+            {shrinks.toLocaleString('en-US')} شرنك
             {loose > 0 && <span className="text-xs font-normal text-amber-600 mr-1">(+{loose} ق)</span>}
           </span>
-          <span className="block text-[11px] text-gray-400">({val.toLocaleString('ar-EG')} قطعة)</span>
+          <span className="block text-[11px] text-gray-400">({val.toLocaleString('en-US')} قطعة)</span>
         </div>
       );
     }},
     { key: 'source', title: 'المصدر', render: (val) => DAMAGE_SOURCE_LABELS[val] || val },
     { key: 'reason', title: 'السبب' },
     { key: 'reviewStatus', title: 'الحالة', render: (val) => <StatusBadge variant={statusVariant[val]}>{statusLabel[val]}</StatusBadge> },
-    { key: 'id', title: '', render: (_, row) => row.reviewStatus === 'pending' ? (
-      <button onClick={() => setApproveConfirm(row)} className="text-xs text-blue-600 dark:text-sky-400 hover:underline font-bold">اعتماد</button>
-    ) : null },
+    { key: 'id', title: '', render: (_, row) => (
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            const product = products.find((p) => p.id === row.productId);
+            const pShrink = row.piecesPerShrink || product?.piecesPerShrink || 24;
+            setEditingDamage({
+              ...row,
+              quantityShrinks: row.quantityPieces / pShrink,
+              date: row.date?.slice(0, 10) || todayISO(),
+            });
+            setModalOpen(true);
+          }}
+          className="btn-icon text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800 dark:hover:text-amber-400 cursor-pointer"
+          title="تعديل تسجيل التالف"
+        ><Pencil size={15} /></button>
+        {row.reviewStatus === 'pending' && (
+          <button onClick={() => setApproveConfirm(row)} className="text-xs text-blue-600 dark:text-sky-400 hover:underline font-bold">اعتماد</button>
+        )}
+      </div>
+    ) },
   ];
 
   return (
     <div className="space-y-5 font-cairo">
       <PageHeader
         title="البضاعة التالفة"
-        subtitle={`إجمالي التالف: ${totalDamagedShrinks.toLocaleString('ar-EG')} شرنك (${totalDamagedPieces.toLocaleString('ar-EG')} قطعة) · ${pendingCount} قيد المراجعة`}
-        actions={<Button variant="danger" onClick={() => setModalOpen(true)}><Plus size={16} /> تسجيل تالف</Button>}
+        subtitle={`إجمالي التالف: ${totalDamagedShrinks.toLocaleString('en-US')} شرنك (${totalDamagedPieces.toLocaleString('en-US')} قطعة) · ${pendingCount} قيد المراجعة`}
+        actions={<Button variant="danger" onClick={() => { setEditingDamage(null); setModalOpen(true); }}><Plus size={16} /> تسجيل تالف</Button>}
       />
       <div className="card p-0 overflow-hidden">
         <DataTable columns={columns} data={sorted} emptyTitle="لا توجد تسجيلات تلف" emptyIcon={AlertTriangle} />
       </div>
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="تسجيل بضاعة تالفة">
-        <DamageForm products={products} salesmen={salesmen} onSubmit={handleSubmit} onClose={() => setModalOpen(false)} />
+      <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditingDamage(null); }} title={editingDamage ? `تعديل تسجيل التالف #${editingDamage.referenceNumber}` : 'تسجيل بضاعة تالفة'}>
+        <DamageForm
+          key={editingDamage?.id || 'new-damage'}
+          products={products}
+          salesmen={salesmen}
+          initialValues={editingDamage}
+          onSubmit={handleSubmit}
+          onClose={() => { setModalOpen(false); setEditingDamage(null); }}
+        />
       </Modal>
       <ConfirmDialog
         isOpen={!!approveConfirm}
         onClose={() => setApproveConfirm(null)}
-        onConfirm={() => { approveDamageRecord(approveConfirm.id); toast.success('تم اعتماد تسجيل التالف'); }}
+        onConfirm={handleApproveDamage}
         title="اعتماد تسجيل التالف"
         message={(() => {
           if (!approveConfirm) return '';
-          const prod = products.find((p) => p.id === approveConfirm.productId);
-          const pShrink = prod?.piecesPerShrink || 24;
-          const s = Math.floor(approveConfirm.quantityPieces / pShrink);
-          return `سيتم تثبيت خصم ${s} شرنك (${approveConfirm.quantityPieces} قطعة) من المخزون بشكل نهائي. هل تريد المتابعة؟`;
+          return `هل تريد اعتماد تسجيل التلف رقم ${approveConfirm.referenceNumber}؟`;
         })()}
       />
     </div>
